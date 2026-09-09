@@ -6,11 +6,13 @@ from sklearn.ensemble import RandomForestClassifier
 
 DATA_PATH = "credit_card_fraud_10k.csv"
 
-BG = "#0D0208"
-PANEL_BG = "#0A1F0D"
-GREEN = "#00FF41"
-DIM_GREEN = "#008F11"
-GRID = "#123317"
+BG = "#0A0014"
+PANEL_BG = "#170B2E"
+GRID = "#2A1550"
+CYAN = "#00F0FF"
+PINK = "#FF2079"
+GREEN = "#39FF14"
+PURPLE = "#B026FF"
 
 FEATURE_COLS = [
     "amount",
@@ -27,7 +29,7 @@ FILTER_KEYS = [
     "f_trust", "f_vel", "f_age", "f_fraud",
 ]
 
-st.set_page_config(page_title="FRAUD_DASHBOARD.exe", page_icon="🟢", layout="wide")
+st.set_page_config(page_title="FRAUD_DASHBOARD.exe", page_icon="🟣", layout="wide")
 
 st.markdown(
     """
@@ -36,93 +38,96 @@ st.markdown(
         font-family: 'Courier New', Courier, monospace !important;
     }
     .stApp {
-        background-color: #0D0208;
-        color: #00FF41;
+        background-color: #0A0014;
+        color: #00F0FF;
     }
     section[data-testid="stSidebar"] {
-        background-color: #0A1F0D;
-        border-right: 1px solid #00FF41;
+        background-color: #170B2E;
+        border-right: 1px solid #FF2079;
     }
     section[data-testid="stSidebar"] * {
         font-family: 'Courier New', Courier, monospace !important;
     }
     h1, h2, h3, h4, h5 {
-        color: #00FF41 !important;
-        text-shadow: 0 0 8px rgba(0,255,65,0.6);
+        color: #00F0FF !important;
+        text-shadow: 0 0 8px rgba(255,32,121,0.7), 0 0 16px rgba(0,240,255,0.4);
         font-family: 'Courier New', Courier, monospace !important;
     }
     p, span, label, div, li {
-        color: #00FF41;
+        color: #00F0FF;
     }
     .terminal-banner {
-        border: 1px solid #00FF41;
+        border: 1px solid #FF2079;
         padding: 18px 22px;
         margin-bottom: 22px;
-        background: #0A1F0D;
-        box-shadow: 0 0 18px rgba(0,255,65,0.25);
+        background: #170B2E;
+        box-shadow: 0 0 24px rgba(255,32,121,0.35), 0 0 40px rgba(176,38,255,0.2);
     }
     .banner-title {
         font-size: 32px;
         font-weight: bold;
         letter-spacing: 3px;
-        text-shadow: 0 0 10px #00FF41, 0 0 22px #00FF41;
+        color: #FF2079;
+        text-shadow: 0 0 10px #FF2079, 0 0 22px #B026FF, 0 0 34px #00F0FF;
     }
     .banner-sub {
-        color: #008F11;
+        color: #B026FF;
         margin-top: 6px;
         font-size: 14px;
     }
     .cursor {
+        color: #39FF14;
         animation: blink 1s step-start infinite;
     }
     @keyframes blink { 50% { opacity: 0; } }
     [data-testid="stMetric"] {
-        background-color: #0A1F0D;
-        border: 1px solid #00FF41;
+        background-color: #170B2E;
+        border: 1px solid #00F0FF;
         border-radius: 4px;
         padding: 12px;
+        box-shadow: 0 0 10px rgba(0,240,255,0.2);
     }
     [data-testid="stMetricLabel"] {
-        color: #008F11 !important;
+        color: #B026FF !important;
     }
     [data-testid="stMetricValue"] {
-        color: #00FF41 !important;
-        text-shadow: 0 0 6px rgba(0,255,65,0.6);
+        color: #FF2079 !important;
+        text-shadow: 0 0 8px rgba(255,32,121,0.7);
     }
     hr {
-        border-color: #00FF41 !important;
+        border-color: #B026FF !important;
     }
     .stButton>button, .stDownloadButton>button {
-        background-color: #0A1F0D;
-        color: #00FF41;
-        border: 1px solid #00FF41;
+        background-color: #170B2E;
+        color: #00F0FF;
+        border: 1px solid #FF2079;
         font-family: 'Courier New', Courier, monospace;
     }
     .stButton>button:hover, .stDownloadButton>button:hover {
-        background-color: #00FF41;
-        color: #0D0208;
+        background-color: #FF2079;
+        color: #0A0014;
     }
     [data-testid="stDataFrame"] {
-        border: 1px solid #00FF41;
+        border: 1px solid #00F0FF;
     }
     ::-webkit-scrollbar { width: 10px; height: 10px; }
-    ::-webkit-scrollbar-track { background: #0D0208; }
-    ::-webkit-scrollbar-thumb { background: #008F11; }
+    ::-webkit-scrollbar-track { background: #0A0014; }
+    ::-webkit-scrollbar-thumb { background: #B026FF; }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
 
-def matrix_theme(fig, height=380, title=None):
+def neon_theme(fig, height=380, title=None):
     fig.update_layout(
         paper_bgcolor=BG,
         plot_bgcolor=BG,
-        font=dict(family="Courier New, monospace", color=GREEN),
-        title=dict(text=title, font=dict(color=GREEN)) if title else None,
-        xaxis=dict(gridcolor=GRID, zerolinecolor=GRID, color=GREEN),
-        yaxis=dict(gridcolor=GRID, zerolinecolor=GRID, color=GREEN),
-        legend=dict(font=dict(color=GREEN), bgcolor="rgba(0,0,0,0)"),
+        font=dict(family="Courier New, monospace", color=CYAN),
+        title=dict(text=title, font=dict(color=PINK)) if title else None,
+        xaxis=dict(gridcolor=GRID, zerolinecolor=GRID, color=CYAN),
+        yaxis=dict(gridcolor=GRID, zerolinecolor=GRID, color=CYAN),
+        legend=dict(font=dict(color=CYAN), bgcolor="rgba(0,0,0,0)"),
         height=height,
         margin=dict(l=10, r=10, t=40 if title else 10, b=10),
     )
@@ -259,19 +264,19 @@ else:
             x=corr.values,
             y=corr.index,
             orientation="h",
-            marker_color=[GREEN if v >= 0 else DIM_GREEN for v in corr.values],
+            marker_color=[GREEN if v >= 0 else PINK for v in corr.values],
         )
     )
-    matrix_theme(fig_corr, title="CORRELATION WITH is_fraud")
+    neon_theme(fig_corr, title="CORRELATION WITH is_fraud")
     fc1.plotly_chart(fig_corr, use_container_width=True)
 
     rf = RandomForestClassifier(n_estimators=200, random_state=42, class_weight="balanced")
     rf.fit(X, y)
     importances = pd.Series(rf.feature_importances_, index=X.columns).sort_values()
     fig_rf = go.Figure(
-        go.Bar(x=importances.values, y=importances.index, orientation="h", marker_color=GREEN)
+        go.Bar(x=importances.values, y=importances.index, orientation="h", marker_color=CYAN)
     )
-    matrix_theme(fig_rf, title="RANDOMFOREST FEATURE IMPORTANCE")
+    neon_theme(fig_rf, title="RANDOMFOREST FEATURE IMPORTANCE")
     fc2.plotly_chart(fig_rf, use_container_width=True)
 
 st.markdown("---")
@@ -288,9 +293,9 @@ cat_stats = filtered_df.groupby("merchant_category").agg(
 )
 cat_stats["fraud_rate"] = cat_stats["fraud"] / cat_stats["total"] * 100
 fig_cat = go.Figure(
-    go.Bar(x=cat_stats.index, y=cat_stats["fraud_rate"], marker_color=GREEN)
+    go.Bar(x=cat_stats.index, y=cat_stats["fraud_rate"], marker_color=PINK)
 )
-matrix_theme(fig_cat, title="FRAUD RATE (%) BY MERCHANT_CATEGORY")
+neon_theme(fig_cat, title="FRAUD RATE (%) BY MERCHANT_CATEGORY")
 ec1.plotly_chart(fig_cat, use_container_width=True)
 
 hour_stats = filtered_df.groupby("transaction_hour").agg(
@@ -298,9 +303,9 @@ hour_stats = filtered_df.groupby("transaction_hour").agg(
 )
 hour_stats["fraud_rate"] = hour_stats["fraud"] / hour_stats["total"] * 100
 fig_hour = go.Figure(
-    go.Bar(x=hour_stats.index, y=hour_stats["fraud_rate"], marker_color=GREEN)
+    go.Bar(x=hour_stats.index, y=hour_stats["fraud_rate"], marker_color=PINK)
 )
-matrix_theme(fig_hour, title="FRAUD RATE (%) BY TRANSACTION_HOUR")
+neon_theme(fig_hour, title="FRAUD RATE (%) BY TRANSACTION_HOUR")
 ec2.plotly_chart(fig_hour, use_container_width=True)
 
 ec3, ec4 = st.columns(2)
@@ -310,7 +315,7 @@ fig_amt.add_trace(
     go.Histogram(
         x=filtered_df.loc[filtered_df["is_fraud"] == 0, "amount"],
         name="LEGIT",
-        marker_color=DIM_GREEN,
+        marker_color=CYAN,
         opacity=0.75,
     )
 )
@@ -318,12 +323,12 @@ fig_amt.add_trace(
     go.Histogram(
         x=filtered_df.loc[filtered_df["is_fraud"] == 1, "amount"],
         name="FRAUD",
-        marker_color=GREEN,
+        marker_color=PINK,
         opacity=0.75,
     )
 )
 fig_amt.update_layout(barmode="overlay")
-matrix_theme(fig_amt, title="AMOUNT DISTRIBUTION :: FRAUD VS LEGIT")
+neon_theme(fig_amt, title="AMOUNT DISTRIBUTION :: FRAUD VS LEGIT")
 ec3.plotly_chart(fig_amt, use_container_width=True)
 
 fig_trust = go.Figure()
@@ -331,17 +336,17 @@ fig_trust.add_trace(
     go.Box(
         y=filtered_df.loc[filtered_df["is_fraud"] == 0, "device_trust_score"],
         name="LEGIT",
-        marker_color=DIM_GREEN,
+        marker_color=CYAN,
     )
 )
 fig_trust.add_trace(
     go.Box(
         y=filtered_df.loc[filtered_df["is_fraud"] == 1, "device_trust_score"],
         name="FRAUD",
-        marker_color=GREEN,
+        marker_color=PINK,
     )
 )
-matrix_theme(fig_trust, title="DEVICE_TRUST_SCORE :: FRAUD VS LEGIT")
+neon_theme(fig_trust, title="DEVICE_TRUST_SCORE :: FRAUD VS LEGIT")
 ec4.plotly_chart(fig_trust, use_container_width=True)
 
 st.markdown("---")

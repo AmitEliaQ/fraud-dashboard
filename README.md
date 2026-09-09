@@ -1,6 +1,6 @@
 # FRAUD_DASHBOARD.exe
 
-A Streamlit dashboard for exploring `credit_card_fraud_10k.csv`, styled like a classic green-on-black hacker terminal. Filter and sort 10,000 transactions and see which features are most predictive of fraud.
+A Streamlit dashboard for exploring `credit_card_fraud_10k.csv`, styled with a neon cyberpunk color scheme (deep-purple/black background, hot-pink, cyan, and neon-green glow accents on a monospace terminal aesthetic). Filter and sort 10,000 transactions and see which features are most predictive of fraud.
 
 ## Screenshots
 
