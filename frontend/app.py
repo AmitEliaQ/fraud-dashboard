@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from sklearn.ensemble import RandomForestClassifier
 
-DATA_PATH = "credit_card_fraud_10k.csv"
+import api_client
+from api_client import BackendError
 
 BG = "#0A0014"
 PANEL_BG = "#170B2E"
@@ -13,16 +13,6 @@ CYAN = "#00F0FF"
 PINK = "#FF2079"
 GREEN = "#39FF14"
 PURPLE = "#B026FF"
-
-FEATURE_COLS = [
-    "amount",
-    "transaction_hour",
-    "foreign_transaction",
-    "location_mismatch",
-    "device_trust_score",
-    "velocity_last_24h",
-    "cardholder_age",
-]
 
 FILTER_KEYS = [
     "f_amount", "f_hour", "f_cat", "f_foreign", "f_mismatch",
@@ -134,17 +124,49 @@ def neon_theme(fig, height=380, title=None):
     return fig
 
 
-@st.cache_data
-def load_data():
-    return pd.read_csv(DATA_PATH)
+@st.cache_data(ttl=60, show_spinner=False)
+def load_health():
+    return api_client.get_health()
 
 
-df = load_data()
+@st.cache_data(ttl=600, show_spinner=False)
+def load_meta():
+    return api_client.get_meta()
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def load_transactions(filters):
+    return api_client.get_transactions(filters)
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def load_predictive_features(filters):
+    return api_client.get_predictive_features(filters)
+
+
+def fetch(loader, *args):
+    """Call the backend, or show the failure and end this script run."""
+    with st.spinner("CONTACTING_BACKEND :: the first request can take about a minute"):
+        try:
+            return loader(*args)
+        except BackendError as exc:
+            st.error(f"!! BACKEND_UNAVAILABLE :: {exc}")
+            st.stop()
+
+
+health = fetch(load_health)
+mismatch = api_client.environment_mismatch(health["environment"])
+if mismatch:
+    st.error(f"!! ENVIRONMENT_MISMATCH :: {mismatch}")
+    st.stop()
+
+meta = fetch(load_meta)
 
 st.markdown(
-    """
+    f"""
     <div class="terminal-banner">
         <div class="banner-title">FRAUD_DASHBOARD<span class="cursor">_</span></div>
+        <div class="banner-sub">ENV :: {api_client.APP_ENV.upper()}</div>
         <div class="banner-sub">root@fraud-analytics:~$ ./analyze --dataset credit_card_fraud_10k.csv --mode interactive</div>
     </div>
     """,
@@ -161,14 +183,14 @@ if st.sidebar.button(">> RESET_FILTERS"):
         st.session_state.pop(k, None)
     st.rerun()
 
-amount_bounds = (float(df["amount"].min()), float(df["amount"].max()))
+amount_bounds = tuple(meta["amount"])
 amount_range = st.sidebar.slider(
     "AMOUNT ($)", amount_bounds[0], amount_bounds[1], amount_bounds, key="f_amount"
 )
 
 hour_range = st.sidebar.slider("TRANSACTION_HOUR", 0, 23, (0, 23), key="f_hour")
 
-categories = sorted(df["merchant_category"].unique().tolist())
+categories = meta["categories"]
 selected_categories = st.sidebar.multiselect(
     "MERCHANT_CATEGORY", categories, default=categories, key="f_cat"
 )
@@ -180,17 +202,17 @@ mismatch_choice = st.sidebar.selectbox(
     "LOCATION_MISMATCH", ["ALL", "YES", "NO"], key="f_mismatch"
 )
 
-trust_bounds = (int(df["device_trust_score"].min()), int(df["device_trust_score"].max()))
+trust_bounds = tuple(meta["trust"])
 trust_range = st.sidebar.slider(
     "DEVICE_TRUST_SCORE", trust_bounds[0], trust_bounds[1], trust_bounds, key="f_trust"
 )
 
-vel_bounds = (int(df["velocity_last_24h"].min()), int(df["velocity_last_24h"].max()))
+vel_bounds = tuple(meta["velocity"])
 vel_range = st.sidebar.slider(
     "VELOCITY_LAST_24H", vel_bounds[0], vel_bounds[1], vel_bounds, key="f_vel"
 )
 
-age_bounds = (int(df["cardholder_age"].min()), int(df["cardholder_age"].max()))
+age_bounds = tuple(meta["age"])
 age_range = st.sidebar.slider(
     "CARDHOLDER_AGE", age_bounds[0], age_bounds[1], age_bounds, key="f_age"
 )
@@ -199,22 +221,20 @@ fraud_choice = st.sidebar.selectbox(
     "FRAUD_STATUS", ["ALL", "FRAUD_ONLY", "LEGIT_ONLY"], key="f_fraud"
 )
 
-mask = (
-    df["amount"].between(*amount_range)
-    & df["transaction_hour"].between(*hour_range)
-    & df["merchant_category"].isin(selected_categories)
-    & df["device_trust_score"].between(*trust_range)
-    & df["velocity_last_24h"].between(*vel_range)
-    & df["cardholder_age"].between(*age_range)
-)
-if foreign_choice != "ALL":
-    mask &= df["foreign_transaction"] == (1 if foreign_choice == "YES" else 0)
-if mismatch_choice != "ALL":
-    mask &= df["location_mismatch"] == (1 if mismatch_choice == "YES" else 0)
-if fraud_choice != "ALL":
-    mask &= df["is_fraud"] == (1 if fraud_choice == "FRAUD_ONLY" else 0)
+filters = {
+    "amount": amount_range,
+    "hour": hour_range,
+    "categories": selected_categories,
+    "foreign": foreign_choice,
+    "mismatch": mismatch_choice,
+    "trust": trust_range,
+    "velocity": vel_range,
+    "age": age_range,
+    "fraud": fraud_choice,
+}
 
-filtered_df = df[mask]
+result = fetch(load_transactions, filters)
+filtered_df = pd.DataFrame(result["data"], columns=result["columns"])
 
 if filtered_df.empty:
     st.warning("!! NO_RECORDS_FOUND :: adjust filters to widen the query")
@@ -245,11 +265,9 @@ st.markdown("---")
 # ---------------------------------------------------------------------------
 st.markdown("## $ WHAT_PREDICTS_FRAUD.log")
 
-cat_dummies = pd.get_dummies(filtered_df["merchant_category"], prefix="cat")
-X = pd.concat([filtered_df[FEATURE_COLS], cat_dummies], axis=1)
-y = filtered_df["is_fraud"]
+features = fetch(load_predictive_features, filters)
 
-if len(filtered_df) < 20 or y.nunique() < 2:
+if not features["sufficient"]:
     st.info(
         "!! INSUFFICIENT_CLASS_VARIANCE :: filtered set needs both fraud and "
         "legit examples (and at least 20 rows) to compute predictive features"
@@ -257,27 +275,24 @@ if len(filtered_df) < 20 or y.nunique() < 2:
 else:
     fc1, fc2 = st.columns(2)
 
-    corr = X.assign(is_fraud=y).corr(numeric_only=True)["is_fraud"].drop("is_fraud")
-    corr = corr.sort_values(key=lambda s: s.abs())
+    corr = pd.DataFrame(features["correlation"])
     fig_corr = go.Figure(
         go.Bar(
-            x=corr.values,
-            y=corr.index,
+            x=corr["value"],
+            y=corr["feature"],
             orientation="h",
-            marker_color=[GREEN if v >= 0 else PINK for v in corr.values],
+            marker_color=[GREEN if v >= 0 else PINK for v in corr["value"]],
         )
     )
     neon_theme(fig_corr, title="CORRELATION WITH is_fraud")
-    fc1.plotly_chart(fig_corr, use_container_width=True)
+    fc1.plotly_chart(fig_corr, width="stretch")
 
-    rf = RandomForestClassifier(n_estimators=200, random_state=42, class_weight="balanced")
-    rf.fit(X, y)
-    importances = pd.Series(rf.feature_importances_, index=X.columns).sort_values()
+    importances = pd.DataFrame(features["importance"])
     fig_rf = go.Figure(
-        go.Bar(x=importances.values, y=importances.index, orientation="h", marker_color=CYAN)
+        go.Bar(x=importances["value"], y=importances["feature"], orientation="h", marker_color=CYAN)
     )
     neon_theme(fig_rf, title="RANDOMFOREST FEATURE IMPORTANCE")
-    fc2.plotly_chart(fig_rf, use_container_width=True)
+    fc2.plotly_chart(fig_rf, width="stretch")
 
 st.markdown("---")
 
@@ -296,7 +311,7 @@ fig_cat = go.Figure(
     go.Bar(x=cat_stats.index, y=cat_stats["fraud_rate"], marker_color=PINK)
 )
 neon_theme(fig_cat, title="FRAUD RATE (%) BY MERCHANT_CATEGORY")
-ec1.plotly_chart(fig_cat, use_container_width=True)
+ec1.plotly_chart(fig_cat, width="stretch")
 
 hour_stats = filtered_df.groupby("transaction_hour").agg(
     total=("is_fraud", "size"), fraud=("is_fraud", "sum")
@@ -306,7 +321,7 @@ fig_hour = go.Figure(
     go.Bar(x=hour_stats.index, y=hour_stats["fraud_rate"], marker_color=PINK)
 )
 neon_theme(fig_hour, title="FRAUD RATE (%) BY TRANSACTION_HOUR")
-ec2.plotly_chart(fig_hour, use_container_width=True)
+ec2.plotly_chart(fig_hour, width="stretch")
 
 ec3, ec4 = st.columns(2)
 
@@ -329,7 +344,7 @@ fig_amt.add_trace(
 )
 fig_amt.update_layout(barmode="overlay")
 neon_theme(fig_amt, title="AMOUNT DISTRIBUTION :: FRAUD VS LEGIT")
-ec3.plotly_chart(fig_amt, use_container_width=True)
+ec3.plotly_chart(fig_amt, width="stretch")
 
 fig_trust = go.Figure()
 fig_trust.add_trace(
@@ -347,7 +362,7 @@ fig_trust.add_trace(
     )
 )
 neon_theme(fig_trust, title="DEVICE_TRUST_SCORE :: FRAUD VS LEGIT")
-ec4.plotly_chart(fig_trust, use_container_width=True)
+ec4.plotly_chart(fig_trust, width="stretch")
 
 st.markdown("---")
 
@@ -363,7 +378,7 @@ ascending = tc2.checkbox("ASCENDING", value=False)
 
 sorted_df = filtered_df.sort_values(by=sort_by, ascending=ascending)
 st.caption(f"> {len(sorted_df):,} records matched :: sorted by {sort_by} ({'asc' if ascending else 'desc'})")
-st.dataframe(sorted_df, use_container_width=True, height=420)
+st.dataframe(sorted_df, width="stretch", height=420)
 
 csv_bytes = sorted_df.to_csv(index=False).encode("utf-8")
 st.download_button(

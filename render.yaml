@@ -1,0 +1,77 @@
+# Four free web services: a backend and a frontend in each of two environments.
+# dev deploys from the dev branch, prod from main.
+projects:
+  - name: fraud-dashboard
+    environments:
+      - name: dev
+        services:
+          - type: web
+            name: fraud-dashboard-api-dev
+            runtime: python
+            plan: free
+            repo: https://github.com/AmitEliaQ/fraud-dashboard
+            branch: dev
+            rootDir: backend
+            autoDeployTrigger: commit
+            buildCommand: pip install -r requirements.txt
+            startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+            healthCheckPath: /health
+            envVars:
+              - key: PYTHON_VERSION
+                value: 3.13.7
+              - key: APP_ENV
+                value: dev
+          - type: web
+            name: fraud-dashboard-ui-dev
+            runtime: python
+            plan: free
+            repo: https://github.com/AmitEliaQ/fraud-dashboard
+            branch: dev
+            rootDir: frontend
+            autoDeployTrigger: commit
+            buildCommand: pip install -r requirements.txt
+            startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+            healthCheckPath: /_stcore/health
+            envVars:
+              - key: PYTHON_VERSION
+                value: 3.13.7
+              - key: APP_ENV
+                value: dev
+              - key: BACKEND_URL
+                value: https://fraud-dashboard-api-dev.onrender.com
+      - name: prod
+        services:
+          - type: web
+            name: fraud-dashboard-api-prod
+            runtime: python
+            plan: free
+            repo: https://github.com/AmitEliaQ/fraud-dashboard
+            branch: main
+            rootDir: backend
+            autoDeployTrigger: commit
+            buildCommand: pip install -r requirements.txt
+            startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+            healthCheckPath: /health
+            envVars:
+              - key: PYTHON_VERSION
+                value: 3.13.7
+              - key: APP_ENV
+                value: prod
+          - type: web
+            name: fraud-dashboard-ui-prod
+            runtime: python
+            plan: free
+            repo: https://github.com/AmitEliaQ/fraud-dashboard
+            branch: main
+            rootDir: frontend
+            autoDeployTrigger: commit
+            buildCommand: pip install -r requirements.txt
+            startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+            healthCheckPath: /_stcore/health
+            envVars:
+              - key: PYTHON_VERSION
+                value: 3.13.7
+              - key: APP_ENV
+                value: prod
+              - key: BACKEND_URL
+                value: https://fraud-dashboard-api-prod.onrender.com
