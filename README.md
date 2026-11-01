@@ -27,11 +27,21 @@ Sortable, filterable data table with CSV export.
 - **Exploratory charts**: fraud rate by merchant category and by hour, amount distribution (fraud vs. legit), device trust score distribution (fraud vs. legit).
 - **Sortable data table**: pick any column and sort direction, with a filtered-CSV download button.
 
+## Architecture
+
+- `backend/`: FastAPI service that owns the dataset, applies filters and computes the predictive features. The RandomForest uses 50 trees so that it stays responsive on a small instance.
+- `frontend/`: Streamlit dashboard that gets all of its data from the backend through `BACKEND_URL`.
+
 ## Running locally
 
 ```bash
-pip install -r requirements.txt
-streamlit run app.py
+pip install -r requirements-dev.txt
+(cd backend && uvicorn main:app --port 8000)
+(cd frontend && streamlit run app.py)    # in a second terminal
 ```
 
-Then open the URL Streamlit prints (defaults to `http://localhost:8501`).
+Then open the URL Streamlit prints (defaults to `http://localhost:8501`). Run the tests with `pytest`.
+
+## Deployment
+
+The app runs on Render's free plan with separate dev and prod environments. See [DEPLOYMENT.md](DEPLOYMENT.md).
